@@ -1,0 +1,73 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.deps import get_db, get_current_user
+from app.models import Produk, Kategori, ProdukVarian, PenerimaanBahanBaku
+from app.schemas import ProdukCreate, ProdukResponse
+
+router = APIRouter(prefix="/produk", tags=["Katalog - Produk"])
+
+@router.get("", response_model=list[ProdukResponse])
+def list_produk(kategori_id: int | None = None, db: Session = Depends(get_db)):
+    query = db.query(Produk)
+    if kategori_id is not None:
+        query = query.filter(Produk.kategori_id == kategori_id)
+    return query.all()
+
+@router.get("/{produk_id}", response_model=ProdukResponse)
+def get_produk(produk_id: int, db: Session = Depends(get_db)):
+    produk = db.query(Produk).filter(Produk.id == produk_id).first()
+    if not produk:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+    return produk
+
+@router.post("", response_model=ProdukResponse)
+def create_produk(data: ProdukCreate, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
+    if data.kategori_id is not None:
+        kategori = db.query(Kategori).filter(Kategori.id == data.kategori_id).first()
+        if not kategori:
+            raise HTTPException(status_code=404, detail=f"Kategori id {data.kategori_id} tidak ditemukan")
+    produk = Produk(**data.model_dump())
+    db.add(produk)
+    db.commit()
+    db.refresh(produk)
+    return produk
+
+@router.put("/{produk_id}", response_model=ProdukResponse)
+def update_produk(produk_id: int, data: ProdukCreate, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
+    produk = db.query(Produk).filter(Produk.id == produk_id).first()
+    if not produk:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+    if data.kategori_id is not None:
+        kategori = db.query(Kategori).filter(Kategori.id == data.kategori_id).first()
+        if not kategori:
+            raise HTTPException(status_code=404, detail=f"Kategori id {data.kategori_id} tidak ditemukan")
+    for field, value in data.model_dump().items():
+        setattr(produk, field, value)
+    db.commit()
+    db.refresh(produk)
+    return produk
+
+@router.delete("/{produk_id}")
+def delete_produk(produk_id: int, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
+    produk = db.query(Produk).filter(Produk.id == produk_id).first()
+    if not produk:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+
+    jumlah_varian = db.query(ProdukVarian).filter(ProdukVarian.produk_id == produk_id).count()
+    if jumlah_varian > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Produk masih punya {jumlah_varian} varian, hapus variannya dulu sebelum hapus produk",
+        )
+
+    jumlah_penerimaan = db.query(PenerimaanBahanBaku).filter(PenerimaanBahanBaku.produk_id == produk_id).count()
+    if jumlah_penerimaan > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Produk masih punya {jumlah_penerimaan} catatan penerimaan bahan baku, tidak bisa dihapus",
+        )
+
+    db.delete(produk)
+    db.commit()
+    return {"pesan": "Produk berhasil dihapus"}

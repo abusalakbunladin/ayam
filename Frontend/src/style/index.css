@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import "tailwindcss";
+
+section {
+    font-family: Inter;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+
+@theme {
+    --color-primary: #1B5200;
+    --color-secondary: #0F7D00;
+    --color-tertiary: #FFE0A1;
+    --color-quaternary: #574634;
+
+    --color-side: #4AAB00;
+
+    --color-accent: #FFE273;
+    --color-accentScnd: #EBD700;
+    --color-accentThrd: #4D2E00;
+}
+
+@layer utilities {
+
+}
+
+@layer components {
+    .hamburg-line {
+        @apply w-7.5 h-0.5 block rounded-full
+    }
+
+    .t-hnd {
+        @apply p-5
+    }
+
+    .t-contain {
+        @apply outline outline-quaternary
+    }
+
+    .t-content {
+        @apply outline outline-quaternary lg:outline-0
+    }
+}
